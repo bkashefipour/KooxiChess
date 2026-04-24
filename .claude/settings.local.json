@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Program Files/dotnet/packs/**)",
+      "Read(//c/Program Files/dotnet/packs/Microsoft.NETCore.App.Runtime.Mono.browser-wasm/**)"
+    ]
+  }
+}

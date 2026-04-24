@@ -5,7 +5,7 @@
 | Phase | Description | Status |
 |---|---|---|
 | Phase 1 | Foundation — Chess.Shared domain layer | ✅ Complete |
-| Phase 2 | Server — ASP.NET Core Web API + SignalR hub | 🔲 Not started |
+| Phase 2 | Server — ASP.NET Core Web API + SignalR hub | ✅ Complete |
 | Phase 3 | Client — Blazor WebAssembly board UI | 🔲 Not started |
 | Phase 4 | Polish — Clocks, lobby, persistence, scale-out | 🔲 Not started |
 
@@ -43,39 +43,49 @@
 **Project Scaffolding**
 - [x] `Chess.Server.csproj` — NuGet packages + Chess.Shared reference configured
 - [x] `Chess.Client.csproj` — NuGet packages + Chess.Shared reference configured
+- [x] All projects upgraded to net10.0 to match installed SDK and workloads
 
 ---
 
-## Phase 2 — Server + SignalR Hub 🔲 Not Started
-
-> Goal: full move lifecycle testable via SignalR test client — no UI needed.
+## Phase 2 — Server + SignalR Hub ✅ Complete
 
 **Startup**
-- [ ] `Program.cs` — DI registration, middleware pipeline, SignalR, auth, EF Core
-- [ ] `appsettings.json` — Azure AD (TenantId, ClientId, Audience), connection string template
+- [x] `Program.cs` — DI registration, middleware pipeline, SignalR, CORS, OpenAPI
+- [x] `appsettings.json` — Azure AD placeholders, Cosmos DB connection string (emulator)
+- [x] Azure AD auth — conditional, activates when TenantId is configured; dev fallback is anonymous
+- [x] Scalar UI — interactive API explorer at `/scalar/v1`
 
 **SignalR Hub**
-- [ ] `Hubs/GameHub.cs` — `JoinGame`, `MakeMove`, `Resign`, `OfferDraw`, `AcceptDraw`, `DeclineDraw`
+- [x] `Hubs/GameHub.cs` — `JoinGame`, `MakeMove`, `Resign`, `OfferDraw`, `AcceptDraw`, `DeclineDraw`
+- [x] Connection lifecycle — `OnDisconnectedAsync` marks player offline, reconnect detection on `JoinGame`
+- [x] Clock tick on each move — deducts elapsed time, adds increment, resets `ClockStartedAt`
 
 **Controllers**
-- [ ] `Controllers/GameController.cs` — get game, game history
-- [ ] `Controllers/LobbyController.cs` — list games, create game, join game
-- [ ] `Controllers/AuthController.cs` — user profile endpoint
+- [x] `Controllers/LobbyController.cs` — list open games, create game, join game, get game state
+- [x] `Controllers/GameController.cs` — get game, get move history, list all games
+- [x] `Controllers/AuthController.cs` — `/api/auth/me` (JWT claims), `/api/auth/ping` (health check)
 
 **Services**
-- [ ] `Services/GameEngineService.cs` — move generation and full chess rules
-- [ ] `Services/MoveValidatorService.cs` — validates `{from, to}` against legal moves
-- [ ] `Services/MatchmakerService.cs` — in-memory game store and player matching
+- [x] `Services/GameEngineService.cs` — full chess rules engine
+  - Pseudo-legal move generation for all piece types
+  - Legal move filtering (no self-check)
+  - Castling with king/rook path and attack validation
+  - En passant capture and target tracking
+  - Pawn promotion (all four promotion pieces)
+  - Check, checkmate, stalemate detection
+  - Fifty-move rule and insufficient material draw detection
+  - SAN notation generation with disambiguation
+- [x] `Services/MoveValidatorService.cs` — validates `MoveDto` against legal moves
+- [x] `Services/MatchmakerService.cs` — in-memory cache + Cosmos-backed persistence, create/join/reconnect/disconnect
 
-**Data**
-- [ ] `Data/ChessDbContext.cs` — EF Core DbContext
-- [ ] `Data/Repositories/` — game and player repositories
-
-**Auth**
-- [ ] `Auth/` — Azure AD JWT configuration and policy setup
+**Data — Azure Cosmos DB**
+- [x] `Data/GameDocument.cs` — serializable Cosmos document (flattens Board 2D array to piece list, Newtonsoft.Json `[JsonProperty("id")]`)
+- [x] `Data/GameRepository.cs` — upsert, get by ID, query by status; auto-creates `KooxiChessDb/Games` container on startup
+- [x] Emulator configured — `AccountEndpoint=https://localhost:8081/`, SSL bypass for self-signed cert, Gateway mode
+- [x] Partition key `/GameId`, persistence on every state change (create, join, move, resign, draw)
 
 **Background Services**
-- [ ] `BackgroundServices/ClockWorker.cs` — per-game clock ticker and timeout enforcement
+- [x] `BackgroundServices/ClockWorker.cs` — ticks every second, broadcasts `ClockUpdate`, triggers `GameOver` on timeout
 
 ---
 
@@ -84,9 +94,11 @@
 > Goal: playable game in the browser with MSAL login.
 
 **Startup**
-- [ ] `Program.cs` — Blazor startup, MSAL configuration, SignalR client DI
-- [ ] `App.razor` — root component and router
-- [ ] `_Imports.razor` — global using directives
+- [x] `Program.cs` — Blazor WASM startup, HttpClient DI (scaffolded)
+- [x] `App.razor` — root component and router (scaffolded)
+- [x] `_Imports.razor` — global using directives (scaffolded)
+- [x] `wwwroot/index.html` — Blazor WASM host page (scaffolded)
+- [x] `wwwroot/css/app.css` — base styles (scaffolded)
 
 **Components**
 - [ ] `Components/BoardComponent.razor` — 8×8 grid rendering
@@ -103,17 +115,13 @@
 - [ ] `Services/ChessHubService.cs` — SignalR client wrapper (connect, send moves, receive broadcasts)
 - [ ] `Services/AuthService.cs` — MSAL login/logout wrapper
 
-**Static Assets**
-- [ ] `wwwroot/index.html` — Blazor WASM host page
-- [ ] `wwwroot/css/app.css` — base styles and board theme
-- [ ] `wwwroot/images/` — piece image assets
-
 ---
 
 ## Phase 4 — Polish 🔲 Not Started
 
 - [ ] Matchmaking lobby — waiting room UI + server-side player matching queue
-- [ ] Move clocks — `ClockWorker` timeout enforcement + client-side interpolation
-- [ ] Game history persistence — EF Core migrations + Azure SQL storage
-- [ ] Azure SignalR Service scale-out — `AddAzureSignalR()` in `Program.cs`
+- [ ] Move clocks — client-side interpolation between server `ClockUpdate` broadcasts
+- [ ] Azure SignalR Service scale-out — swap `AddSignalR()` for `AddAzureSignalR()` in `Program.cs`
 - [ ] Spectator mode — read-only SignalR group join, no move input
+- [ ] Threefold repetition draw detection
+- [ ] Insufficient material — same-color bishop edge case
